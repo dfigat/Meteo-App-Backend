@@ -1,0 +1,10 @@
+fastapi
+httpx
+sqlalchemy
+asyncpg
+jinja2
+uvicorn
+redis[asyncio]
+python-multipart
+aioredis
+motor
