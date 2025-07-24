@@ -1,0 +1,57 @@
+version: "3"
+
+services:
+  weather-app:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    image: weather-app:latest
+    restart: always
+    ports:
+      - "8000:8000"
+    networks:
+      - weather-net
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://user:password@db:5432/dbname
+      - REDIS_URL=redis://redis:6379
+      - REDIS_HOST=redis
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dbname
+    networks:
+      - weather-net
+    volumes:
+      - ./data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    restart: always
+    networks:
+      - weather-net
+
+  mongo:
+    image: mongo:6
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    restart: unless-stopped
+    networks:
+      - weather-net
+    volumes:
+      - mongo_data:/data/db
+
+networks:
+  weather-net:
+    external: true
+    name: shared-net
+
+volumes:
+  mongo_data:
