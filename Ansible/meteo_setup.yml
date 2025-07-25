@@ -1,0 +1,97 @@
+- name: Wdrożenie weather-app i usług wspierających za pomocą Dockera
+  hosts: my_hosts
+  become: true
+
+  vars:
+    docker_registry_url: registry.example.com
+    docker_registry_username: your_registry_user
+    docker_registry_password: "{{ vault_docker_registry_password }}"
+    weather_app_image: registry.example.com/weather/weather-app:latest
+
+    pg_container_name: db
+    pg_image: postgres:16
+    pg_user: weather_user
+    pg_password: "{{ vault_pg_password }}"
+    pg_db: weather
+    pg_volume: weather_data
+    pg_network: shared-net
+
+  roles:
+    - geerlingguy.docker
+
+  tasks:
+    - name: Zaloguj się do prywatnego rejestru Dockera
+      community.docker.docker_login:
+        registry_url: "{{ docker_registry_url }}"
+        username: "{{ docker_registry_username }}"
+        password: "{{ docker_registry_password }}"
+
+    - name: Upewnij się, że sieć Docker '{{ pg_network }}' istnieje
+      community.docker.docker_network:
+        name: "{{ pg_network }}"
+        state: present
+
+    - name: Utwórz wolumen Docker dla PostgreSQL
+      community.docker.docker_volume:
+        name: "{{ pg_volume }}"
+
+    - name: Pobierz najnowszy obraz aplikacji weather-app
+      community.docker.docker_image:
+        name: "{{ weather_app_image }}"
+        source: pull
+        force_source: true
+
+    - name: Uruchom kontener PostgreSQL
+      community.docker.docker_container:
+        name: "{{ pg_container_name }}"
+        image: "{{ pg_image }}"
+        restart_policy: always
+        state: started
+        env:
+          POSTGRES_USER: "{{ pg_user }}"
+          POSTGRES_PASSWORD: "{{ pg_password }}"
+          POSTGRES_DB: "{{ pg_db }}"
+        volumes:
+          - "{{ pg_volume }}:/var/lib/postgresql/data"
+        networks:
+          - name: "{{ pg_network }}"
+
+    - name: Uruchom kontener weather-app
+      community.docker.docker_container:
+        name: weather-app
+        image: "{{ weather_app_image }}"
+        restart_policy: always
+        state: started
+        ports:
+          - "8000:8000"
+        env:
+          DATABASE_URL: "postgresql+asyncpg://{{ pg_user }}:{{ pg_password }}@db:5432/{{ pg_db }}"
+        networks:
+          - name: "{{ pg_network }}"
+
+    - name: Uruchom kontener Redis
+      community.docker.docker_container:
+        name: redis
+        image: redis:7
+        restart_policy: always
+        state: started
+        networks:
+          - name: "{{ pg_network }}"
+
+    - name: Utwórz wolumen Docker dla MongoDB
+      community.docker.docker_volume:
+        name: mongo_data
+        state: present
+
+    - name: Uruchom kontener MongoDB
+      community.docker.docker_container:
+        name: mongo
+        image: mongo:6
+        restart_policy: always
+        state: started
+        ports:
+          - "27017:27017"
+        volumes:
+          - mongo_data:/data/db
+        networks:
+          - name: "{{ pg_network }}"
