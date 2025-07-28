@@ -22,12 +22,6 @@ Make sure Docker network `shared-net` exists:
 docker network create shared-net
 ```
 
-Then build all services:
-
-```bash
-docker compose build
-```
-
 ---
 
 ## 📦 Build & Push Docker image
