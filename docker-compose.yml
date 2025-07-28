@@ -16,20 +16,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - REDIS_HOST=redis
     depends_on:
-      - db
       - redis
-
-  db:
-    image: postgres:16
-    restart: always
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: dbname
-    networks:
-      - weather-net
-    volumes:
-      - ./data:/var/lib/postgresql/data
 
   redis:
     image: redis:7
